@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quality Control Charts</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0f13;
+    --surface: #16181f;
+    --surface2: #1e2029;
+    --border: #2a2d3a;
+    --accent: #f0c040;
+    --accent2: #4fc3f7;
+    --accent3: #ef5350;
+    --accent4: #66bb6a;
+    --text: #e8eaf0;
+    --muted: #7a7f95;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --display: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 48px 40px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-end;
+    gap: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -80px;
+    width: 340px; height: 340px;
+    background: radial-gradient(circle, rgba(240,192,64,.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(240,192,64,.1);
+    border: 1px solid rgba(240,192,64,.3);
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    display: inline-block;
+  }
+  header h1 {
+    font-family: var(--display);
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1.05;
+  }
+  header h1 span { color: var(--accent); }
+  header p {
+    color: var(--muted);
+    font-size: 14px;
+    margin-top: 6px;
+    max-width: 480px;
+  }
+
+  /* ── NAV ── */
+  nav {
+    display: flex;
+    gap: 4px;
+    padding: 16px 40px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  nav::-webkit-scrollbar { display: none; }
+  .nav-btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .2s;
+  }
+  .nav-btn:hover { color: var(--text); border-color: var(--border); }
+  .nav-btn.active {
+    background: var(--accent);
+    color: #0e0f13;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* ── MAIN ── */
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 40px 80px;
+  }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* ── CHART SECTION LAYOUT ── */
+  .chart-layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 24px;
+    margin-top: 32px;
+  }
+  @media(max-width: 900px) { .chart-layout { grid-template-columns: 1fr; } }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .card-title {
+    font-family: var(--display);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  /* ── INTRO PANEL ── */
+  .intro-panel {
+    background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .intro-panel::after {
+    content: '';
+    position: absolute;
+    bottom: -20px; right: -20px;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(79,195,247,.08), transparent 70%);
+    pointer-events: none;
+  }
+  .intro-panel h2 {
+    font-family: var(--display);
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .intro-panel h2 .tag {
+    font-size: 12px;
+    font-family: var(--mono);
+    font-weight: 500;
+    color: var(--accent2);
+    background: rgba(79,195,247,.1);
+    border: 1px solid rgba(79,195,247,.25);
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 10px;
+    vertical-align: middle;
+  }
+  .intro-panel p { color: var(--muted); font-size: 14px; max-width: 700px; }
+
+  /* ── FORMULA BOX ── */
+  .formula-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+  }
+  .formula-box .label {
+    font-family: var(--sans);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  /* ── SIGNAL PILLS ── */
+  .signal-list { display: flex; flex-direction: column; gap: 8px; }
+  .signal {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+  }
+  .signal .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+  .signal.ooc .dot { background: var(--accent3); box-shadow: 0 0 6px var(--accent3); }
+  .signal.warn .dot { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .signal.ok .dot { background: var(--accent4); box-shadow: 0 0 6px var(--accent4); }
+  .signal .sig-title { font-weight: 500; color: var(--text); font-size: 13px; }
+  .signal .sig-desc { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  /* ── STATS GRID ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .stat-cell {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .stat-cell .val {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--accent);
+  }
+  .stat-cell .lbl {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+    letter-spacing: .05em;
+  }
+
+  /* ── INTERPRETATION BOX ── */
+  .interp {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .interp strong { color: var(--text); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 9px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid;
+    transition: all .15s;
+  }
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0e0f13;
+  }
+  .btn-primary:hover { background: #f5d060; border-color: #f5d060; }
+  .btn-ghost {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--muted);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+  .btn-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+
+  /* ── CHART CANVAS ── */
+  .chart-wrap {
+    position: relative;
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 12px;
+    border: 1px solid var(--border);
+  }
+
+  /* ── OVERVIEW GRID (landing) ── */
+  .overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 24px;
+  }
+  .ov-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 20px;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .ov-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 12px 12px 0 0;
+  }
+  .ov-card.xbar::before { background: var(--accent); }
+  .ov-card.rchart::before { background: var(--accent2); }
+  .ov-card.pchart::before { background: var(--accent3); }
+  .ov-card.cchart::before { background: var(--accent4); }
+  .ov-card.uchart::before { background: #ab47bc; }
+  .ov-card.imr::before { background: #ff7043; }
+  .ov-card:hover { border-color: var(--muted); transform: translateY(-2px); }
+  .ov-card h3 {
+    font-family: var(--display);
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .ov-card .ov-type {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .ov-card p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="header-badge">Statistical Process Control</div>
+    <h1>Quality <span>Control</span><br>Charts</h1>
+    <p>Detect process variation, identify signals from noise, and take action at the right time — not too early, not too late.</p>
+  </div>
+</header>
+
+<nav>
+  <button class="nav-btn active" onclick="showSection('overview')">Overview</button>
+  <button class="nav-btn" onclick="showSection('xbar')">X̄ Chart</button>
+  <button class="nav-btn" onclick="showSection('range')">R Chart</button>
+  <button class="nav-btn" onclick="showSection('imr')">I-MR Chart</button>
+  <button class="nav-btn" onclick="showSection('pchart')">p Chart</button>
+  <button class="nav-btn" onclick="showSection('cchart')">c Chart</button>
+  <button class="nav-btn" onclick="showSection('uchart')">u Chart</button>
+</nav>
+
+<main>
+
+<!-- ══════════════════ OVERVIEW ══════════════════ -->
+<div id="overview" class="section active">
+  <div class="intro-panel">
+    <h2>What are Control Charts? <span class="tag">Shewhart, 1924</span></h2>
+    <p>Control charts separate <strong style="color:var(--text)">common-cause variation</strong> (inherent to the process) from <strong style="color:var(--text)">special-cause variation</strong> (assignable signals). Acting on common cause as if it were special cause makes processes worse — this is called <em>tampering</em>.</p>
+  </div>
+
+  <p style="color:var(--muted);font-size:14px;margin-bottom:6px">Select a chart type to explore:</p>
+  <div class="overview-grid">
+    <div class="ov-card xbar" onclick="showSection('xbar')">
+      <div class="ov-type">Continuous · Subgroups</div>
+      <h3>X̄ Chart</h3>
+      <p>Monitors the <em>mean</em> of subgroups of measurements. Paired with R or S chart for spread.</p>
+    </div>
+    <div class="ov-card rchart" onclick="showSection('range')">
+      <div class="ov-type">Continuous · Subgroups</div>
+      <h3>R Chart</h3>
+      <p>Monitors <em>within-subgroup range</em>. Detects changes in process variability.</p>
+    </div>
+    <div class="ov-card imr" onclick="showSection('imr')">
+      <div class="ov-type">Continuous · Individual</div>
+      <h3>I-MR Chart</h3>
+      <p>For individual measurements (n=1). Uses moving range to estimate variation.</p>
+    </div>
+    <div class="ov-card pchart" onclick="showSection('pchart')">
+      <div class="ov-type">Attribute · Proportion</div>
+      <h3>p Chart</h3>
+      <p>Monitors the <em>proportion nonconforming</em>. Handles variable subgroup sizes.</p>
+    </div>
+    <div class="ov-card cchart" onclick="showSection('cchart')">
+      <div class="ov-type">Attribute · Count</div>
+      <h3>c Chart</h3>
+      <p>Counts of <em>defects per unit</em> when the opportunity area is constant.</p>
+    </div>
+    <div class="ov-card uchart" onclick="showSection('uchart')">
+      <div class="ov-type">Attribute · Rate</div>
+      <h3>u Chart</h3>
+      <p>Defects-per-unit <em>rate</em> when the inspection area varies across samples.</p>
+    </div>
+  </div>
+
+  <div style="margin-top:36px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card">
+      <div class="card-title">Control Limit Logic</div>
+      <div class="formula-box">
+        <div class="label">General Form</div>
+        Center Line ± 3σ̂
+      </div>
+      <p style="font-size:13px;color:var(--muted)">Limits are set at ±3 standard deviations of the <em>plotted statistic</em> — not the raw data. This gives approximately 99.73% coverage under normality, yielding a very low false-alarm rate.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Western Electric Rules</div>
+      <div class="signal-list">
+        <div class="signal ooc"><div class="dot"></div><div><div class="sig-title">1 point beyond ±3σ</div><div class="sig-desc">Most obvious out-of-control signal</div></div></div>
+        <div class="signal warn"><div class="dot"></div><div><div class="sig-title">9 points same side of CL</div><div class="sig-desc">Process mean has likely shifted</div></div></div>
+        <div class="signal warn"><div class="dot"></div><div><div class="sig-title">6 consecutive trending</div><div class="sig-desc">Systematic drift in the process</div></div></div>
+        <div class="signal ok"><div class="dot"></div><div><div class="sig-title">All within ±1σ</div><div class="sig-desc">Possible stratification / over-control</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ X̄ CHART ══════════════════ -->
+<div id="xbar" class="section">
+  <div class="intro-panel">
+    <h2>X̄ Chart <span class="tag">Subgroup Means</span></h2>
+    <p>Each point is the <em>mean</em> of a subgroup (typically n = 4–5). Detects shifts in process average. Must always be paired with an R or S chart — the X̄ chart limits are derived from within-subgroup spread.</p>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="generateXbar()">↻ New Sample</button>
+    <button class="btn btn-ghost" onclick="injectXbarShift()">Inject Mean Shift</button>
+  </div>
+  <div class="chart-layout">
+    <div>
+      <div class="card-title">X̄ Chart — Subgroup Means</div>
+      <div class="chart-wrap"><canvas id="xbarChart" height="200"></canvas></div>
+      <div class="card-title" style="margin-top:18px">R Chart — Subgroup Ranges</div>
+      <div class="chart-wrap"><canvas id="rChart" height="140"></canvas></div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">Parameters</div>
+        <div class="stats-grid" id="xbarStats"></div>
+        <div class="formula-box" style="margin-top:16px">
+          <div class="label">Control Limits</div>
+          UCL = X̿ + A₂R̄<br>
+          LCL = X̿ − A₂R̄
+        </div>
+        <div class="formula-box">
+          <div class="label">A₂ factor (n=5)</div>
+          A₂ = 0.577
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">Reading the Chart</div>
+        <div class="signal-list" id="xbarSignals"></div>
+        <div class="interp" id="xbarInterp"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ R CHART ══════════════════ -->
+<div id="range" class="section">
+  <div class="intro-panel">
+    <h2>R Chart <span class="tag">Subgroup Range</span></h2>
+    <p>Monitors <em>within-subgroup variability</em>. The range (max − min) is simple to compute. For larger subgroups (n &gt; 10) an S chart (standard deviation) is preferred. <strong style="color:var(--text)">Always check the R chart before interpreting the X̄ chart</strong> — unstable spread invalidates the mean chart limits.</p>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="generateRange()">↻ New Sample</button>
+    <button class="btn btn-ghost" onclick="injectRangeShift()">Inject Variance Shift</button>
+  </div>
+  <div class="chart-layout">
+    <div>
+      <div class="card-title">R Chart — Range of Subgroups</div>
+      <div class="chart-wrap"><canvas id="rangeChart" height="240"></canvas></div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">Parameters</div>
+        <div class="stats-grid" id="rangeStats"></div>
+        <div class="formula-box" style="margin-top:16px">
+          <div class="label">Control Limits (n=5)</div>
+          UCL = D₄ · R̄  (D₄ = 2.114)<br>
+          LCL = D₃ · R̄  (D₃ = 0)
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">Interpretation</div>
+        <div class="signal-list" id="rangeSignals"></div>
+        <div class="interp" id="rangeInterp"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ I-MR CHART ══════════════════ -->
+<div id="imr" class="section">
+  <div class="intro-panel">
+    <h2>Individuals & Moving Range Chart <span class="tag">n = 1</span></h2>
+    <p>Used when only one observation is available per time period — common in slow processes (batch chemistry, monthly financials). The <em>moving range</em> between consecutive observations estimates short-term variability. <strong style="color:var(--text)">Assumes approximate normality</strong>; can be sensitive to non-normal data.</p>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="generateIMR()">↻ New Sample</button>
+    <button class="btn btn-ghost" onclick="injectIMRShift()">Inject Step Change</button>
+  </div>
+  <div class="chart-layout">
+    <div>
+      <div class="card-title">Individuals Chart</div>
+      <div class="chart-wrap"><canvas id="iChart" height="200"></canvas></div>
+      <div class="card-title" style="margin-top:18px">Moving Range Chart</div>
+      <div class="chart-wrap"><canvas id="mrChart" height="140"></canvas></div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">Parameters</div>
+        <div class="stats-grid" id="imrStats"></div>
+        <div class="formula-box" style="margin-top:16px">
+          <div class="label">I Chart Limits</div>
+          UCL = X̄ + 2.66·MR̄<br>
+          LCL = X̄ − 2.66·MR̄
+        </div>
+        <div class="formula-box">
+          <div class="label">MR Chart Limits</div>
+          UCL = 3.267·MR̄  (D₄, n=2)
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">Interpretation</div>
+        <div class="signal-list" id="imrSignals"></div>
+        <div class="interp" id="imrInterp"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ p CHART ══════════════════ -->
+<div id="pchart" class="section">
+  <div class="intro-panel">
+    <h2>p Chart <span class="tag">Proportion Nonconforming</span></h2>
+    <p>For attribute data: each item is either <em>conforming</em> or <em>nonconforming</em>. The p chart tracks the fraction defective per subgroup. Control limits are derived from the binomial distribution. Variable subgroup sizes produce <em>variable-width limits</em> — wider limits for smaller samples.</p>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="generateP()">↻ New Sample</button>
+    <button class="btn btn-ghost" onclick="injectPShift()">Inject Rate Shift</button>
+  </div>
+  <div class="chart-layout">
+    <div>
+      <div class="card-title">p Chart — Fraction Nonconforming</div>
+      <div class="chart-wrap"><canvas id="pChart" height="260"></canvas></div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">Parameters</div>
+        <div class="stats-grid" id="pStats"></div>
+        <div class="formula-box" style="margin-top:16px">
+          <div class="label">Control Limits</div>
+          UCL = p̄ + 3√(p̄(1−p̄)/nᵢ)<br>
+          LCL = max(0, p̄ − 3√(p̄(1−p̄)/nᵢ))
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">Interpretation</div>
+        <div class="signal-list" id="pSignals"></div>
+        <div class="interp" id="pInterp"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ c CHART ══════════════════ -->
+<div id="cchart" class="section">
+  <div class="intro-panel">
+    <h2>c Chart <span class="tag">Count of Defects · Fixed Area</span></h2>
+    <p>Counts the number of <em>nonconformities</em> (defects) per inspection unit when the <strong style="color:var(--text)">area of opportunity is constant</strong> — e.g., defects per printed circuit board, blemishes per car door panel. Based on the Poisson distribution.</p>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="generateC()">↻ New Sample</button>
+    <button class="btn btn-ghost" onclick="injectCShift()">Inject Count Spike</button>
+  </div>
+  <div class="chart-layout">
+    <div>
+      <div class="card-title">c Chart — Defect Count per Unit</div>
+      <div class="chart-wrap"><canvas id="cChart" height="260"></canvas></div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">Parameters</div>
+        <div class="stats-grid" id="cStats"></div>
+        <div class="formula-box" style="margin-top:16px">
+          <div class="label">Control Limits (Poisson)</div>
+          UCL = c̄ + 3√c̄<br>
+          LCL = max(0, c̄ − 3√c̄)
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">Interpretation</div>
+        <div class="signal-list" id="cSignals"></div>
+        <div class="interp" id="cInterp"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ u CHART ══════════════════ -->
+<div id="uchart" class="section">
+  <div class="intro-panel">
+    <h2>u Chart <span class="tag">Defects per Unit · Variable Area</span></h2>
+    <p>Like the c chart but for <em>variable inspection areas</em> — e.g., defects per 100 sq ft of fabric when roll lengths differ. The u statistic is defects ÷ inspection units. Limits vary by sample size, producing a <em>ragged limit</em> pattern.</p>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="generateU()">↻ New Sample</button>
+    <button class="btn btn-ghost" onclick="injectUShift()">Inject Rate Shift</button>
+  </div>
+  <div class="chart-layout">
+    <div>
+      <div class="card-title">u Chart — Defects per Inspection Unit</div>
+      <div class="chart-wrap"><canvas id="uChart" height="260"></canvas></div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">Parameters</div>
+        <div class="stats-grid" id="uStats"></div>
+        <div class="formula-box" style="margin-top:16px">
+          <div class="label">Control Limits</div>
+          u = c / n<br>
+          UCL = ū + 3√(ū/nᵢ)<br>
+          LCL = max(0, ū − 3√(ū/nᵢ))
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">Interpretation</div>
+        <div class="signal-list" id="uSignals"></div>
+        <div class="interp" id="uInterp"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ─── Utilities ─────────────────────────────────────────────────
+const randn = () => {
+  let u=0, v=0;
+  while(!u) u=Math.random();
+  while(!v) v=Math.random();
+  return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+};
+const randPoisson = (lam) => {
+  let L=Math.exp(-lam), k=0, p=1;
+  do { k++; p*=Math.random(); } while(p>L);
+  return k-1;
+};
+const mean = a => a.reduce((s,x)=>s+x,0)/a.length;
+const fmt = (v,d=3) => (+v).toFixed(d);
+const clamp = (v,lo,hi) => Math.max(lo,Math.min(hi,v));
+
+// Chart defaults
+Chart.defaults.color = '#7a7f95';
+Chart.defaults.borderColor = '#2a2d3a';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 11;
+
+const charts = {};
+function mkChart(id, type, data, options) {
+  if(charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), {type, data, options});
+  return charts[id];
+}
+
+// ─── Nav ───────────────────────────────────────────────────────
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const labels = {overview:0,xbar:1,range:2,imr:3,pchart:4,cchart:5,uchart:6};
+  document.querySelectorAll('.nav-btn')[labels[id]].classList.add('active');
+  // auto-generate on first visit
+  if(id==='xbar' && !charts.xbarChart) generateXbar();
+  if(id==='range' && !charts.rangeChart) generateRange();
+  if(id==='imr' && !charts.iChart) generateIMR();
+  if(id==='pchart' && !charts.pChart) generateP();
+  if(id==='cchart' && !charts.cChart) generateC();
+  if(id==='uchart' && !charts.uChart) generateU();
+}
+
+// ─── Shared chart options ──────────────────────────────────────
+const baseOpts = (yLabel) => ({
+  responsive: true,
+  animation: { duration: 400 },
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: '#1e2029',
+      borderColor: '#2a2d3a',
+      borderWidth: 1,
+      titleColor: '#e8eaf0',
+      bodyColor: '#7a7f95',
+    }
+  },
+  scales: {
+    x: { grid: { color: '#1e2029' }, ticks: { maxTicksLimit: 10 } },
+    y: { grid: { color: '#1e2029' }, title: { display: !!yLabel, text: yLabel, color: '#7a7f95' } }
+  }
+});
+
+function lineDataset(label, data, color, opts={}) {
+  return { label, data, borderColor: color, backgroundColor: color+'22',
+    pointRadius: 4, pointHoverRadius: 6, borderWidth: 2,
+    tension: 0.2, fill: false, ...opts };
+}
+function limitDataset(label, data, color) {
+  return { label, data, borderColor: color, borderDash: [5,4],
+    pointRadius: 0, borderWidth: 1.5, fill: false };
+}
+function zoneDataset(upper, lower, color) {
+  return { data: upper, borderColor:'transparent', backgroundColor: color+'18',
+    pointRadius:0, fill:'+1' };
+}
+
+function markOOC(data, ucl, lcl) {
+  // returns point colors
+  return data.map(v => (v > ucl || v < lcl) ? '#ef5350' : '#f0c040');
+}
+
+function buildLimitArrays(n, ucl, lcl, cl) {
+  return {
+    uclArr: Array(n).fill(ucl),
+    lclArr: Array(n).fill(Math.max(0,lcl)),
+    clArr:  Array(n).fill(cl)
+  };
+}
+
+// ─── Signals & Stats helpers ───────────────────────────────────
+function detectSignals(data, cl, ucl, lcl) {
+  const signals = [];
+  const ooc = data.filter(v=>v>ucl||v<lcl).length;
+  if(ooc>0) signals.push({type:'ooc', title:`${ooc} point${ooc>1?'s':''} beyond ±3σ limit`, desc:'Assignable cause likely present — investigate immediately.'});
+  // 9 run
+  let run=1, runMax=1, prev=data[0]>cl?1:-1;
+  for(let i=1;i<data.length;i++){
+    const s=data[i]>cl?1:-1;
+    if(s===prev) { run++; runMax=Math.max(runMax,run); } else run=1;
+    prev=s;
+  }
+  if(runMax>=9) signals.push({type:'warn',title:'Run of 9+ on same side of CL',desc:'Process mean may have shifted.'});
+  // 6 trend
+  let trend=1, trendMax=1, dir=Math.sign(data[1]-data[0]);
+  for(let i=2;i<data.length;i++){
+    const d=Math.sign(data[i]-data[i-1]);
+    if(d===dir&&d!==0) { trend++; trendMax=Math.max(trendMax,trend); } else { trend=1; dir=d; }
+  }
+  if(trendMax>=6) signals.push({type:'warn',title:'Trend of 6+ consecutive points',desc:'Systematic drift detected.'});
+  if(signals.length===0) signals.push({type:'ok',title:'No signals detected','desc':'Process appears to be in statistical control.'});
+  return signals;
+}
+
+function renderSignals(elId, signals) {
+  const el = document.getElementById(elId);
+  el.innerHTML = signals.map(s=>`
+    <div class="signal ${s.type}">
+      <div class="dot"></div>
+      <div><div class="sig-title">${s.title}</div><div class="sig-desc">${s.desc}</div></div>
+    </div>`).join('');
+}
+
+function renderStats(elId, stats) {
+  const el = document.getElementById(elId);
+  el.innerHTML = stats.map(s=>`<div class="stat-cell"><div class="val">${s.val}</div><div class="lbl">${s.lbl}</div></div>`).join('');
+}
+
+// ─── X̄ & R Chart ──────────────────────────────────────────────
+let xbarData = null;
+function generateXbarData(shiftAt=-1) {
+  const k=25, n=5, mu=50, sigma=3;
+  const groups=[];
+  for(let i=0;i<k;i++){
+    const offset = (shiftAt>=0 && i>=shiftAt) ? 4 : 0;
+    const obs = Array.from({length:n},()=>mu+offset+randn()*sigma);
+    groups.push(obs);
+  }
+  return groups;
+}
+function computeXbarR(groups) {
+  const xbars = groups.map(g=>mean(g));
+  const ranges = groups.map(g=>Math.max(...g)-Math.min(...g));
+  const xdbar = mean(xbars);
+  const rbar = mean(ranges);
+  const A2=0.577, D3=0, D4=2.114;
+  return { xbars, ranges, xdbar, rbar,
+    xUCL: xdbar+A2*rbar, xLCL: xdbar-A2*rbar,
+    rUCL: D4*rbar, rLCL: D3*rbar };
+}
+function renderXbar(groups) {
+  const {xbars,ranges,xdbar,rbar,xUCL,xLCL,rUCL,rLCL} = computeXbarR(groups);
+  const labels = xbars.map((_,i)=>i+1);
+  const ptColors = markOOC(xbars, xUCL, xLCL);
+  const ptColorsR = markOOC(ranges, rUCL, rLCL);
+
+  mkChart('xbarChart','line',{
+    labels,
+    datasets:[
+      zoneDataset(Array(25).fill(xUCL),Array(25).fill(xLCL),'#f0c040'),
+      limitDataset('UCL',Array(25).fill(xUCL),'#ef5350'),
+      limitDataset('LCL',Array(25).fill(xLCL),'#ef5350'),
+      limitDataset('CL',Array(25).fill(xdbar),'#4fc3f7'),
+      { ...lineDataset('X̄',xbars,'#f0c040'),
+        pointBackgroundColor: ptColors, pointBorderColor: ptColors }
+    ]
+  }, {...baseOpts('Subgroup Mean'), plugins:{...baseOpts().plugins}});
+
+  mkChart('rChart','line',{
+    labels,
+    datasets:[
+      limitDataset('UCL',Array(25).fill(rUCL),'#ef5350'),
+      limitDataset('LCL',Array(25).fill(Math.max(0,rLCL)),'#ef5350'),
+      limitDataset('CL',Array(25).fill(rbar),'#4fc3f7'),
+      { ...lineDataset('R',ranges,'#ab47bc'),
+        pointBackgroundColor: ptColorsR, pointBorderColor: ptColorsR }
+    ]
+  }, {...baseOpts('Range')});
+
+  renderStats('xbarStats',[
+    {val:fmt(xdbar,2), lbl:'X̿ (Grand Mean)'},
+    {val:fmt(rbar,2), lbl:'R̄ (Avg Range)'},
+    {val:fmt(xUCL,2), lbl:'UCL (X̄)'},
+    {val:fmt(xLCL,2), lbl:'LCL (X̄)'},
+    {val:fmt(rUCL,2), lbl:'UCL (R)'},
+  ]);
+  const sigs = detectSignals(xbars, xdbar, xUCL, xLCL);
+  renderSignals('xbarSignals', sigs);
+  const ooc = xbars.filter((v,i)=>v>xUCL||v<xLCL).length;
+  document.getElementById('xbarInterp').innerHTML =
+    `<strong>Process:</strong> Simulated fill weight (g), subgroup n=5, k=25 subgroups.<br>
+     Grand mean <strong>${fmt(xdbar,2)}</strong>, estimated σ̂ = R̄/d₂ = <strong>${fmt(rbar/2.326,2)}</strong>.
+     ${ooc>0
+       ? `<strong style="color:var(--accent3)">${ooc} subgroup mean(s) fall outside control limits</strong> — special cause suspected.`
+       : 'All subgroup means fall <strong>within control limits</strong> — process is in control.'}`;
+}
+function generateXbar() { xbarData=generateXbarData(); renderXbar(xbarData); }
+function injectXbarShift() { xbarData=generateXbarData(15); renderXbar(xbarData); }
+
+// ─── R Chart standalone ────────────────────────────────────────
+let rangeGroupData = null;
+function generateRange(shiftAt=-1) {
+  const k=25, n=5, mu=50;
+  const groups=[];
+  for(let i=0;i<k;i++){
+    const sigma = (shiftAt>=0 && i>=shiftAt) ? 6 : 3;
+    groups.push(Array.from({length:n},()=>mu+randn()*sigma));
+  }
+  rangeGroupData = groups;
+  const {ranges,rbar,rUCL,rLCL} = computeXbarR(groups);
+  const labels = ranges.map((_,i)=>i+1);
+  const ptColors = markOOC(ranges, rUCL, 0);
+
+  mkChart('rangeChart','line',{
+    labels,
+    datasets:[
+      limitDataset('UCL',Array(25).fill(rUCL),'#ef5350'),
+      limitDataset('LCL',Array(25).fill(0),'#4fc3f7'),
+      limitDataset('R̄',Array(25).fill(rbar),'#4fc3f7'),
+      { ...lineDataset('Range',ranges,'#4fc3f7'),
+        pointBackgroundColor: ptColors, pointBorderColor: ptColors }
+    ]
+  }, {...baseOpts('Subgroup Range')});
+
+  renderStats('rangeStats',[
+    {val:fmt(rbar,2), lbl:'R̄'},
+    {val:fmt(rUCL,2), lbl:'UCL'},
+    {val:'0', lbl:'LCL'},
+    {val:fmt(rbar/2.326,2), lbl:'σ̂'},
+  ]);
+  const sigs = detectSignals(ranges, rbar, rUCL, 0);
+  renderSignals('rangeSignals', sigs);
+  const ooc = ranges.filter(v=>v>rUCL).length;
+  document.getElementById('rangeInterp').innerHTML =
+    `The R chart uses factors D₄=2.114 and D₃=0 (n=5).<br>
+     ${ooc>0
+       ? `<strong style="color:var(--accent3)">${ooc} range(s) exceed UCL</strong> — process variability has increased. The X̄ chart limits cannot be trusted until variability is stabilized.`
+       : 'Variability is <strong>stable</strong> — safe to interpret the X̄ chart.'}`;
+}
+function injectRangeShift() { generateRange(14); }
+
+// ─── I-MR Chart ────────────────────────────────────────────────
+let imrRaw = null;
+function generateIMR(shiftAt=-1) {
+  const n=30, mu=100, sigma=5;
+  const obs=[];
+  for(let i=0;i<n;i++){
+    const off=(shiftAt>=0&&i>=shiftAt)?8:0;
+    obs.push(mu+off+randn()*sigma);
+  }
+  imrRaw=obs;
+  const mr = obs.slice(1).map((v,i)=>Math.abs(v-obs[i]));
+  const xbar=mean(obs), mrbar=mean(mr);
+  const d2=1.128, D4=3.267;
+  const iUCL=xbar+2.66*mrbar, iLCL=xbar-2.66*mrbar;
+  const mUCL=D4*mrbar;
+  const labels=obs.map((_,i)=>i+1);
+  const mrLabels=mr.map((_,i)=>i+2);
+  const ptI=markOOC(obs,iUCL,iLCL);
+  const ptMR=markOOC(mr,mUCL,0);
+
+  mkChart('iChart','line',{
+    labels,
+    datasets:[
+      zoneDataset(Array(n).fill(iUCL),Array(n).fill(iLCL),'#ff7043'),
+      limitDataset('UCL',Array(n).fill(iUCL),'#ef5350'),
+      limitDataset('LCL',Array(n).fill(iLCL),'#ef5350'),
+      limitDataset('X̄',Array(n).fill(xbar),'#4fc3f7'),
+      { ...lineDataset('Xᵢ',obs,'#ff7043'),
+        pointBackgroundColor: ptI, pointBorderColor: ptI }
+    ]
+  }, {...baseOpts('Individual Value')});
+
+  mkChart('mrChart','line',{
+    labels:mrLabels,
+    datasets:[
+      limitDataset('UCL',Array(n-1).fill(mUCL),'#ef5350'),
+      limitDataset('MR̄',Array(n-1).fill(mrbar),'#4fc3f7'),
+      { ...lineDataset('MR',mr,'#4fc3f7'),
+        pointBackgroundColor: ptMR, pointBorderColor: ptMR }
+    ]
+  }, {...baseOpts('Moving Range')});
+
+  renderStats('imrStats',[
+    {val:fmt(xbar,2), lbl:'X̄'},
+    {val:fmt(mrbar,2), lbl:'MR̄'},
+    {val:fmt(iUCL,2), lbl:'UCL (I)'},
+    {val:fmt(iLCL,2), lbl:'LCL (I)'},
+    {val:fmt(mrbar/d2,2), lbl:'σ̂'},
+  ]);
+  const sigs = detectSignals(obs,xbar,iUCL,iLCL);
+  renderSignals('imrSignals',sigs);
+  const ooc=obs.filter(v=>v>iUCL||v<iLCL).length;
+  document.getElementById('imrInterp').innerHTML=
+    `Individual measurements (n=1) of a batch process.<br>
+     σ̂ = MR̄/d₂ = <strong>${fmt(mrbar/d2,2)}</strong>. The 2.66 multiplier = 3/d₂ for n=2.<br>
+     ${ooc>0
+       ? `<strong style="color:var(--accent3)">${ooc} individual(s) outside limits</strong>.`
+       : '<strong>In control</strong> — no signals detected.'}`;
+}
+function generateIMR() { generateIMR(-1); }
+function injectIMRShift() { generateIMR(18); }
+
+// ─── p Chart ──────────────────────────────────────────────────
+function generateP(shiftAt=-1) {
+  const k=25, baseP=0.05;
+  const ns=[],ps=[],ucls=[],lcls=[];
+  for(let i=0;i<k;i++){
+    const n=80+Math.floor(Math.random()*40);
+    const p = (shiftAt>=0&&i>=shiftAt) ? 0.12 : baseP;
+    const defects=Array.from({length:n},()=>Math.random()<p?1:0).reduce((a,b)=>a+b,0);
+    ns.push(n); ps.push(defects/n);
+  }
+  const pbar=ps.reduce((s,pi,i)=>s+pi*ns[i],0)/ns.reduce((a,b)=>a+b,0);
+  ps.forEach((_,i)=>{
+    const se=Math.sqrt(pbar*(1-pbar)/ns[i]);
+    ucls.push(pbar+3*se); lcls.push(Math.max(0,pbar-3*se));
+  });
+  const labels=ps.map((_,i)=>i+1);
+  const ptColors=ps.map((v,i)=>(v>ucls[i]||v<lcls[i])?'#ef5350':'#ef5350aa');
+  const mainColors=ps.map((v,i)=>(v>ucls[i]||v<lcls[i])?'#ef5350':'#4fc3f7');
+
+  mkChart('pChart','line',{
+    labels,
+    datasets:[
+      limitDataset('UCL',ucls,'#ef5350'),
+      limitDataset('LCL',lcls,'#ef5350'),
+      limitDataset('p̄',Array(k).fill(pbar),'#4fc3f7'),
+      { ...lineDataset('pᵢ',ps,'#ef5350'),
+        pointBackgroundColor: mainColors, pointBorderColor: mainColors }
+    ]
+  }, {...baseOpts('Fraction Nonconforming')});
+
+  renderStats('pStats',[
+    {val:fmt(pbar,4), lbl:'p̄'},
+    {val:fmt(mean(ucls),4), lbl:'Avg UCL'},
+    {val:fmt(mean(ns),1), lbl:'Avg n'},
+    {val:fmt(ps.filter((v,i)=>v>ucls[i]).length,0), lbl:'OOC Points'},
+  ]);
+  const sigs=detectSignals(ps,pbar,mean(ucls),mean(lcls));
+  renderSignals('pSignals',sigs);
+  const ooc=ps.filter((v,i)=>v>ucls[i]).length;
+  document.getElementById('pInterp').innerHTML=
+    `Tracking nonconforming items. Process average defect rate p̄ = <strong>${fmt(pbar*100,2)}%</strong>.<br>
+     Variable subgroup sizes produce <em>varying-width</em> control limits.<br>
+     ${ooc>0
+       ? `<strong style="color:var(--accent3)">${ooc} subgroup(s) exceed UCL</strong> — defect rate elevated.`
+       : 'Process defect rate appears <strong>stable</strong>.'}`;
+}
+function injectPShift() { generateP(14); }
+
+// ─── c Chart ──────────────────────────────────────────────────
+function generateC(spikeAt=-1) {
+  const k=25, cbar0=4;
+  const counts=[];
+  for(let i=0;i<k;i++){
+    const lam=(spikeAt>=0&&i===spikeAt)?cbar0*4:cbar0;
+    counts.push(randPoisson(lam));
+  }
+  const cbar=mean(counts);
+  const UCL=cbar+3*Math.sqrt(cbar), LCL=Math.max(0,cbar-3*Math.sqrt(cbar));
+  const labels=counts.map((_,i)=>i+1);
+  const ptC=markOOC(counts,UCL,LCL);
+
+  mkChart('cChart','bar',{
+    labels,
+    datasets:[
+      limitDataset('UCL',Array(k).fill(UCL),'#ef5350'),
+      limitDataset('LCL',Array(k).fill(LCL),'#ef5350'),
+      limitDataset('c̄',Array(k).fill(cbar),'#4fc3f7'),
+      { label:'cᵢ', data:counts,
+        backgroundColor: counts.map((v)=>(v>UCL||v<LCL)?'#ef535088':'#66bb6a44'),
+        borderColor: counts.map((v)=>(v>UCL||v<LCL)?'#ef5350':'#66bb6a'),
+        borderWidth:1.5, type:'bar' }
+    ]
+  }, {...baseOpts('Defect Count')});
+
+  renderStats('cStats',[
+    {val:fmt(cbar,2), lbl:'c̄'},
+    {val:fmt(UCL,2), lbl:'UCL'},
+    {val:fmt(Math.max(0,LCL),2), lbl:'LCL'},
+    {val:fmt(Math.sqrt(cbar),2), lbl:'√c̄ (σ̂)'},
+  ]);
+  const sigs=detectSignals(counts,cbar,UCL,LCL);
+  renderSignals('cSignals',sigs);
+  const ooc=counts.filter(v=>v>UCL||v<LCL).length;
+  document.getElementById('cInterp').innerHTML=
+    `Counts of surface defects per unit (constant area). Average c̄ = <strong>${fmt(cbar,2)}</strong>.<br>
+     Poisson: σ = √c̄ = <strong>${fmt(Math.sqrt(cbar),2)}</strong>.<br>
+     ${ooc>0
+       ? `<strong style="color:var(--accent3)">${ooc} unit(s) outside limits</strong> — investigate for assignable cause.`
+       : 'Defect counts are <strong>stable</strong> around the average.'}`;
+}
+function injectCShift() {
+  generateC(Math.floor(Math.random()*20)+3);
+}
+
+// ─── u Chart ──────────────────────────────────────────────────
+function generateU(shiftAt=-1) {
+  const k=25, ubar0=0.8;
+  const ns=[],us=[],ucls=[],lcls=[];
+  for(let i=0;i<k;i++){
+    const n=5+Math.floor(Math.random()*10);
+    const uRate=(shiftAt>=0&&i>=shiftAt)?ubar0*2.5:ubar0;
+    const c=randPoisson(uRate*n);
+    ns.push(n); us.push(c/n);
+  }
+  const totalC=us.reduce((s,u,i)=>s+u*ns[i],0);
+  const totalN=ns.reduce((a,b)=>a+b,0);
+  const ubar=totalC/totalN;
+  us.forEach((_,i)=>{
+    const se=Math.sqrt(ubar/ns[i]);
+    ucls.push(ubar+3*se); lcls.push(Math.max(0,ubar-3*se));
+  });
+  const labels=us.map((_,i)=>i+1);
+  const mainC=us.map((v,i)=>(v>ucls[i]||v<lcls[i])?'#ef5350':'#ab47bc');
+
+  mkChart('uChart','line',{
+    labels,
+    datasets:[
+      limitDataset('UCL',ucls,'#ef5350'),
+      limitDataset('LCL',lcls,'#ef5350'),
+      limitDataset('ū',Array(k).fill(ubar),'#4fc3f7'),
+      { ...lineDataset('uᵢ',us,'#ab47bc'),
+        pointBackgroundColor: mainC, pointBorderColor: mainC }
+    ]
+  }, {...baseOpts('Defects per Unit')});
+
+  renderStats('uStats',[
+    {val:fmt(ubar,3), lbl:'ū'},
+    {val:fmt(mean(ucls),3), lbl:'Avg UCL'},
+    {val:fmt(mean(ns),1), lbl:'Avg n'},
+    {val:fmt(us.filter((v,i)=>v>ucls[i]).length,0), lbl:'OOC Pts'},
+  ]);
+  const sigs=detectSignals(us,ubar,mean(ucls),mean(lcls));
+  renderSignals('uSignals',sigs);
+  const ooc=us.filter((v,i)=>v>ucls[i]).length;
+  document.getElementById('uInterp').innerHTML=
+    `Defects per inspection unit with varying roll lengths. ū = <strong>${fmt(ubar,3)}</strong>.<br>
+     Ragged limits reflect varying sample sizes — <em>wider limits for smaller samples</em>.<br>
+     ${ooc>0
+       ? `<strong style="color:var(--accent3)">${ooc} sample(s) above UCL</strong> — elevated defect rate.`
+       : 'Defect rate is <strong>in control</strong>.'}`;
+}
+function injectUShift() { generateU(15); }
+
+// Init first visible chart not needed — auto on nav click
+</script>
+</body>
+</html>
